@@ -7,6 +7,7 @@ using CoreGraphics;
 using UIKit;
 using Xamarin.Forms.Internals;
 using Xamarin.Forms.PlatformConfiguration.iOSSpecific;
+using static Xamarin.Forms.PlatformConfiguration.iOSSpecific.Page;
 using PointF = CoreGraphics.CGPoint;
 using RectangleF = CoreGraphics.CGRect;
 
@@ -307,7 +308,6 @@ namespace Xamarin.Forms.Platform.iOS
 				actuallyRemoved = !await task;
 
 			poppedViewController.Dispose();
-
 			UpdateToolBarVisible();
 			return actuallyRemoved;
 		}
@@ -421,9 +421,25 @@ namespace Xamarin.Forms.Platform.iOS
 			else if (e.PropertyName == VisualElement.BackgroundColorProperty.PropertyName)
 				UpdateBackgroundColor();
 			else if (e.PropertyName == NavigationPage.CurrentPageProperty.PropertyName)
+			{
 				Current = ((NavigationPage)Element).CurrentPage;
+				var animation = (UIStatusBarAnimation)Enum.Parse(typeof(UIStatusBarAnimation), Current.OnThisPlatform().PreferredStatusBarUpdateAnimation());
+				if (animation == UIStatusBarAnimation.Fade || animation == UIStatusBarAnimation.Slide)
+					UIView.Animate(0.25, () => SetNeedsStatusBarAppearanceUpdate());
+				else
+					SetNeedsStatusBarAppearanceUpdate();
+			}
 			else if (e.PropertyName == PlatformConfiguration.iOSSpecific.NavigationPage.IsNavigationBarTranslucentProperty.PropertyName)
 				UpdateTranslucent();
+			else if (e.PropertyName == PreferredStatusBarUpdateAnimationProperty.PropertyName)
+				UpdateCurrentPagePreferredAnimationProperty();
+		}
+
+		void UpdateCurrentPagePreferredAnimationProperty()
+		{
+			PageUIStatusBarAnimation animation = 
+				(PageUIStatusBarAnimation)Enum.Parse(typeof(PageUIStatusBarAnimation), ((Page)Element).OnThisPlatform().PreferredStatusBarUpdateAnimation());
+			Current.OnThisPlatform().SetPreferredStatusBarUpdateAnimation(animation);
 		}
 
 		void UpdateTranslucent()
@@ -771,6 +787,7 @@ namespace Xamarin.Forms.Platform.iOS
 				var handler = Appearing;
 				if (handler != null)
 					handler(this, EventArgs.Empty);
+				UpdatePrefersStatusBarHidden();
 			}
 
 			public override void ViewDidDisappear(bool animated)
@@ -865,6 +882,20 @@ namespace Xamarin.Forms.Platform.iOS
 					NavigationItem.Title = Child.Title;
 				else if (e.PropertyName == NavigationPage.HasBackButtonProperty.PropertyName)
 					UpdateHasBackButton();
+				else if (e.PropertyName == PrefersStatusBarHiddenProperty.PropertyName)
+					UpdatePrefersStatusBarHidden();
+			}
+
+			void UpdatePrefersStatusBarHidden()
+			{
+				NavigationRenderer n;
+				if (_navigation.TryGetTarget(out n))
+					n.View.SetNeedsLayout();
+				var animation = (UIStatusBarAnimation)Enum.Parse(typeof(UIStatusBarAnimation), Child.OnThisPlatform().PreferredStatusBarUpdateAnimation());
+				if (animation == UIStatusBarAnimation.Fade || animation == UIStatusBarAnimation.Slide)
+					UIView.Animate(0.25, () => SetNeedsStatusBarAppearanceUpdate());
+				else
+					SetNeedsStatusBarAppearanceUpdate();
 			}
 
 			void TrackerOnCollectionChanged(object sender, EventArgs eventArgs)
@@ -959,6 +990,16 @@ namespace Xamarin.Forms.Platform.iOS
 			}
 
 			public override bool ShouldAutomaticallyForwardRotationMethods => true;
+		}
+
+		public override UIViewController ChildViewControllerForStatusBarHidden()
+		{
+			return (UIViewController)Platform.GetRenderer(Current);
+		}
+
+		public override bool PrefersStatusBarHidden()
+		{
+			return Current.OnThisPlatform().PrefersStatusBarHidden();
 		}
 
 		void IEffectControlProvider.RegisterEffect(Effect effect)

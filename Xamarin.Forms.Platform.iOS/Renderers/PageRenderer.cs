@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using UIKit;
+using Xamarin.Forms.PlatformConfiguration.iOSSpecific;
 
 namespace Xamarin.Forms.Platform.iOS
 {
@@ -75,6 +76,7 @@ namespace Xamarin.Forms.Platform.iOS
 
 			_appeared = true;
 			PageController.SendAppearing();
+			UpdateStatusBarPrefersHidden();
 		}
 
 		public override void ViewDidDisappear(bool animated)
@@ -119,6 +121,7 @@ namespace Xamarin.Forms.Platform.iOS
 			base.ViewWillDisappear(animated);
 
 			View.Window?.EndEditing(true);
+			UpdateStatusBarPrefersHidden();
 		}
 
 		protected override void Dispose(bool disposing)
@@ -176,6 +179,26 @@ namespace Xamarin.Forms.Platform.iOS
 				UpdateBackground();
 			else if (e.PropertyName == Page.TitleProperty.PropertyName)
 				UpdateTitle();
+			else if (e.PropertyName == PlatformConfiguration.iOSSpecific.Page.PrefersStatusBarHiddenProperty.PropertyName)
+				UpdateStatusBarPrefersHidden();
+		}
+
+		public override UIStatusBarAnimation PreferredStatusBarUpdateAnimation
+		{
+			get
+			{
+				return (UIStatusBarAnimation)Enum.Parse(typeof(UIStatusBarAnimation), ((Page)Element).OnThisPlatform().PreferredStatusBarUpdateAnimation());
+			}
+		}
+
+		void UpdateStatusBarPrefersHidden()
+		{
+			var animation = (UIStatusBarAnimation)Enum.Parse(typeof(UIStatusBarAnimation), ((Page)Element).OnThisPlatform().PreferredStatusBarUpdateAnimation());
+			if (animation == UIStatusBarAnimation.Fade || animation == UIStatusBarAnimation.Slide)
+				UIView.Animate(0.25, () => SetNeedsStatusBarAppearanceUpdate());
+			else
+				SetNeedsStatusBarAppearanceUpdate();
+			View.SetNeedsLayout();
 		}
 
 		bool OnShouldReceiveTouch(UIGestureRecognizer recognizer, UITouch touch)
@@ -186,6 +209,11 @@ namespace Xamarin.Forms.Platform.iOS
 					return false;
 			}
 			return true;
+		}
+
+		public override bool PrefersStatusBarHidden()
+		{
+			return ((Page)Element).OnThisPlatform().PrefersStatusBarHidden();
 		}
 
 		void UpdateBackground()

@@ -4,6 +4,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using UIKit;
 using Xamarin.Forms.Internals;
+using static Xamarin.Forms.PlatformConfiguration.iOSSpecific.Page;
 
 namespace Xamarin.Forms.Platform.iOS
 {
@@ -241,6 +242,30 @@ namespace Xamarin.Forms.Platform.iOS
 				UpdateBarBackgroundColor();
 			else if (e.PropertyName == TabbedPage.BarTextColorProperty.PropertyName)
 				UpdateBarTextColor();
+			else if (e.PropertyName == PrefersStatusBarHiddenProperty.PropertyName)
+				UpdateCurrentPagePrefersStatusBarHidden();
+			else if (e.PropertyName == PreferredStatusBarUpdateAnimationProperty.PropertyName)
+				UpdateCurrentPagePreferredAnimation();
+		}
+
+		public override UIViewController ChildViewControllerForStatusBarHidden()
+		{
+			return GetViewController(Tabbed.CurrentPage);
+		}
+
+		void UpdateCurrentPagePreferredAnimation()
+		{
+			PageUIStatusBarAnimation animation =
+			(PageUIStatusBarAnimation)Enum.Parse(typeof(PageUIStatusBarAnimation), ((Page)Element).OnThisPlatform().PreferredStatusBarUpdateAnimation());
+			Tabbed.CurrentPage.OnThisPlatform().SetPreferredStatusBarUpdateAnimation(animation);
+		}
+
+		void UpdateCurrentPagePrefersStatusBarHidden()
+		{
+			for (var i = 0; i < ViewControllers.Length; i++)
+			{
+				Tabbed.GetPageByIndex(i).OnThisPlatform().SetPrefersStatusBarHidden(Tabbed.OnThisPlatform().PrefersStatusBarHidden());
+			}
 		}
 
 		void Reset()
